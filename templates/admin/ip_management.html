@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IP Management - Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .ip-container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .admin-header h1 {
+            margin: 0;
+            color: #333;
+        }
+        .admin-nav {
+            display: flex;
+            gap: 10px;
+        }
+        .admin-nav a {
+            padding: 8px 16px;
+            background: #2a4d8f;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .admin-nav a:hover {
+            background: #3b7dd8;
+        }
+        .ip-form {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .ip-form input[type="text"] {
+            width: 300px;
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .ip-form button {
+            padding: 8px 16px;
+            background: #2a4d8f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .ip-form button:hover {
+            background: #3b7dd8;
+        }
+        .ip-list {
+            margin-top: 20px;
+        }
+        .ip-list h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .ip-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f5f5f5;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .ip-item button {
+            padding: 5px 10px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .ip-item button:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="ip-container">
+        <div class="admin-header">
+            <h1>IP Management</h1>
+            <div class="admin-nav">
+                <a href="{{ url_for('view_logs') }}">View Logs</a>
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </div>
+        </div>
+        
+        <div class="ip-form">
+            <form method="POST">
+                <input type="text" name="ip" placeholder="Enter IP address or CIDR (e.g., 192.168.1.0/24)" required>
+                <input type="hidden" name="action" value="add">
+                <button type="submit">Add IP</button>
+            </form>
+        </div>
+        
+        <div class="ip-list">
+            <h2>Allowed IPs</h2>
+            {% for ip in allowed_ips %}
+            <div class="ip-item">
+                <span>{{ ip }}</span>
+                <form method="POST" style="display: inline;">
+                    <input type="hidden" name="ip" value="{{ ip }}">
+                    <input type="hidden" name="action" value="remove">
+                    <button type="submit">Remove</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html> 

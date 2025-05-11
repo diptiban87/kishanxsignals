@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Market Dashboard - KishanXSignals</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="page-flex">
+    <nav class="main-nav" id="mainNav">
+        <button class="hamburger" id="hamburgerBtn" aria-label="Open menu">
+            <span></span><span></span><span></span>
+        </button>
+        <a href="/" class="nav-link">Forex</a>
+        <a href="/otc" class="nav-link">OTC</a>
+        <a href="/indian" class="nav-link">Indian</a>
+        <a href="/dashboard" class="nav-link">Dashboard</a>
+        <a href="/market_dashboard" class="nav-link active">Market Data</a>
+        <a href="/profile" class="nav-link">Profile</a>
+        <a href="/legal" class="nav-link">Legal</a>
+        <a href="/logout" class="nav-link logout-btn">Logout</a>
+    </nav>
+
+    <div class="dashboard-container">
+        <div class="market-controls">
+            <select id="symbol-select" class="market-select">
+                {% for pair in indian_pairs %}
+                <option value="{{ pair }}">{{ pair }}</option>
+                {% endfor %}
+            </select>
+            <select id="timeframe-select" class="market-select">
+                <option value="1d">1 Day</option>
+                <option value="5d">5 Days</option>
+                <option value="1mo">1 Month</option>
+                <option value="3mo">3 Months</option>
+                <option value="6mo">6 Months</option>
+                <option value="1y">1 Year</option>
+            </select>
+            <button id="refresh-btn" class="refresh-btn">Refresh Data</button>
+        </div>
+
+        <div class="market-grid">
+            <!-- Market Overview -->
+            <div class="market-overview">
+                <h2>Market Overview</h2>
+                <div id="demo-message" class="demo-message" style="display: none;">
+                    <span class="demo-icon">⚠️</span>
+                    <span>Demo data is being displayed as Yahoo Finance and NSE data are currently unavailable</span>
+                </div>
+                <div class="market-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Current Price</span>
+                        <span class="stat-value" id="current-price">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Change</span>
+                        <span class="stat-value" id="price-change">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Change %</span>
+                        <span class="stat-value" id="price-change-percent">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Volume</span>
+                        <span class="stat-value" id="volume">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">High</span>
+                        <span class="stat-value" id="high">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Low</span>
+                        <span class="stat-value" id="low">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Open</span>
+                        <span class="stat-value" id="open">--</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Previous Close</span>
+                        <span class="stat-value" id="previous-close">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Price Chart -->
+            <div class="chart-card">
+                <h3>Price Chart</h3>
+                <canvas id="price-chart"></canvas>
+            </div>
+
+            <!-- Technical Indicators -->
+            <div class="indicators-grid">
+                <div class="indicator-card">
+                    <h4>RSI</h4>
+                    <canvas id="rsi-chart"></canvas>
+                </div>
+                <div class="indicator-card">
+                    <h4>MACD</h4>
+                    <canvas id="macd-chart"></canvas>
+                </div>
+                <div class="indicator-card">
+                    <h4>Bollinger Bands</h4>
+                    <canvas id="bollinger-chart"></canvas>
+                </div>
+                <div class="indicator-card">
+                    <h4>Volume</h4>
+                    <canvas id="volume-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    .dashboard-container {
+        padding: 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+        width: 100%;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        padding: 16px;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .nav-menu {
+        display: flex;
+        gap: 24px;
+        margin: 0 24px;
+    }
+
+    .nav-link {
+        color: #1e293b;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+
+    .nav-link:hover {
+        background: #f1f5f9;
+        color: #2a4d8f;
+    }
+
+    .nav-link.active {
+        background: #2a4d8f;
+        color: white;
+    }
+
+    .logo {
+        height: 40px;
+    }
+
+    .market-controls {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .market-controls select,
+    .market-controls input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        min-width: 150px;
+    }
+
+    .refresh-btn {
+        padding: 8px 24px;
+        background: linear-gradient(135deg, #2a4d8f 0%, #3b7dd8 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(42,77,143,0.2);
+    }
+
+    .refresh-btn.loading {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .refresh-icon {
+        width: 16px;
+        height: 16px;
+        transition: transform 0.3s ease;
+    }
+
+    .refresh-btn.loading .refresh-icon {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.8);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+    }
+
+    .loading-overlay.active {
+        display: flex;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #2a4d8f;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    .market-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .market-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .market-overview h2 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 20px;
+    }
+
+    .market-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 12px;
+        background: #f8fafc;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+    .stat-item:hover {
+        background: #f1f5f9;
+        transform: translateY(-1px);
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #64748b;
+        font-weight: 500;
+    }
+
+    .stat-value {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .chart-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 400px;
+    }
+
+    .chart-card h3 {
+        margin: 0 0 16px 0;
+        color: #2a4d8f;
+        font-size: 1.2rem;
+    }
+
+    .indicators-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    .indicator-card {
+        background: white;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 300px;
+    }
+
+    .indicator-card h4 {
+        margin: 0 0 12px 0;
+        color: #2a4d8f;
+        font-size: 1.1rem;
+    }
+
+    canvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-container {
+            padding: 10px;
+        }
+
+        .market-controls {
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .market-controls select,
+        .market-controls input {
+            width: 100%;
+        }
+
+        .price-chart {
+            height: 300px;
+        }
+
+        .technical-indicators {
+            grid-template-columns: 1fr;
+        }
+
+        .indicator-card {
+            height: 250px;
+        }
+    }
+
+    .demo-message {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        color: #856404;
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.95rem;
+    }
+
+    .demo-icon {
+        font-size: 1.2rem;
+    }
+
+    .main-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        padding: 14px 0;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 10;
+    }
+    .nav-link {
+        color: #1e293b;
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 1.08rem;
+        padding: 10px 18px;
+        border-radius: 8px;
+        transition: background 0.25s, color 0.25s, box-shadow 0.25s;
+        position: relative;
+        z-index: 1;
+    }
+    .nav-link.active, .nav-link:hover {
+        background: linear-gradient(90deg, #2a4d8f 60%, #3b7dd8 100%);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(42,77,143,0.08);
+    }
+    .logout-btn {
+        color: #d7263d;
+        font-weight: 500;
+        transition: background 0.2s, color 0.2s;
+    }
+    .logout-btn:hover {
+        background: #ffeaea;
+        color: #b91c1c;
+    }
+    .hamburger {
+        display: none;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        width: 38px;
+        height: 38px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        margin-left: 10px;
+        z-index: 1001;
+    }
+    .hamburger span {
+        display: block;
+        width: 26px;
+        height: 3px;
+        background: #2a4d8f;
+        margin: 4px 0;
+        border-radius: 2px;
+        transition: all 0.3s;
+    }
+    @media (max-width: 600px) {
+        .main-nav {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0;
+            padding: 0;
+            border-radius: 0 0 14px 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            position: relative;
+        }
+        .nav-link {
+            display: none;
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 0;
+            font-size: 1.08rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .main-nav.open .nav-link {
+            display: block;
+        }
+        .nav-link:last-child {
+            border-bottom: none;
+        }
+        .hamburger {
+            display: flex !important;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1001;
+        }
+    }
+    </style>
+
+    <script>
+    let priceChart, rsiChart, macdChart, bollingerChart, volumeChart;
+    let currentSymbol = 'NIFTY50';
+    let currentTimeframe = '1mo';
+    let refreshInterval = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add loading overlay
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.innerHTML = '<div class="loading-spinner"></div>';
+        document.querySelector('.market-grid').appendChild(loadingOverlay);
+        
+        // Update refresh button
+        const refreshBtn = document.getElementById('refresh-btn');
+        refreshBtn.innerHTML = `
+            <svg class="refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6M1 20v-6h6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Refresh Data
+        `;
+        
+        // Initialize the rest
+        console.log('Page loaded, initializing...');
+        initializeCharts();
+        fetchMarketData();
+        
+        // Add event listeners
+        document.getElementById('symbol-select').addEventListener('change', function(e) {
+            currentSymbol = e.target.value;
+            console.log('Symbol changed to:', currentSymbol);
+            resetRefreshInterval();
+            fetchMarketData();
+        });
+        
+        document.getElementById('timeframe-select').addEventListener('change', function(e) {
+            currentTimeframe = e.target.value;
+            console.log('Timeframe changed to:', currentTimeframe);
+            resetRefreshInterval();
+            fetchMarketData();
+        });
+        
+        refreshBtn.addEventListener('click', function() {
+            console.log('Refresh button clicked');
+            resetRefreshInterval();
+            fetchMarketData();
+        });
+
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const navMenu = document.getElementById('mainNav');
+        hamburgerBtn.addEventListener('click', function() {
+            navMenu.classList.toggle('open');
+            hamburgerBtn.classList.toggle('open');
+        });
+    });
+
+    function resetRefreshInterval() {
+        // Clear existing interval
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+        
+        // Set new interval for real-time updates (every 30 seconds)
+        refreshInterval = setInterval(fetchMarketData, 30000);
+    }
+
+    function initializeCharts() {
+        // Initialize all charts with empty data
+        const chartConfig = {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        }
+                    },
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        };
+
+        // Price Chart
+        priceChart = new Chart(document.getElementById('price-chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price',
+                    data: [],
+                    borderColor: '#2a4d8f',
+                    fill: false,
+                    spanGaps: true
+                }]
+            }
+        });
+
+        // RSI Chart
+        rsiChart = new Chart(document.getElementById('rsi-chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'RSI',
+                    data: [],
+                    borderColor: '#4caf50',
+                    fill: false,
+                    spanGaps: true
+                }]
+            },
+            options: {
+                ...chartConfig.options,
+                scales: {
+                    ...chartConfig.options.scales,
+                    y: {
+                        min: 0,
+                        max: 100
+                    }
+                }
+            }
+        });
+
+        // MACD Chart
+        macdChart = new Chart(document.getElementById('macd-chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'MACD',
+                    data: [],
+                    borderColor: '#2a4d8f',
+                    fill: false,
+                    spanGaps: true
+                }, {
+                    label: 'Signal',
+                    data: [],
+                    borderColor: '#f44336',
+                    fill: false,
+                    spanGaps: true
+                }]
+            }
+        });
+
+        // Bollinger Bands Chart
+        bollingerChart = new Chart(document.getElementById('bollinger-chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Price',
+                    data: [],
+                    borderColor: '#2a4d8f',
+                    fill: false,
+                    spanGaps: true
+                }, {
+                    label: 'Upper Band',
+                    data: [],
+                    borderColor: '#4caf50',
+                    fill: false,
+                    spanGaps: true
+                }, {
+                    label: 'Lower Band',
+                    data: [],
+                    borderColor: '#f44336',
+                    fill: false,
+                    spanGaps: true
+                }]
+            }
+        });
+
+        // Volume Chart
+        volumeChart = new Chart(document.getElementById('volume-chart'), {
+            ...chartConfig,
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Volume',
+                    data: [],
+                    backgroundColor: '#2a4d8f',
+                    type: 'bar'
+                }]
+            }
+        });
+    }
+
+    async function fetchMarketData() {
+        try {
+            showLoading(true);
+            console.log(`Fetching data for ${currentSymbol} with timeframe ${currentTimeframe}`);
+            const response = await fetch(`/market_data/${currentSymbol}?timeframe=${currentTimeframe}`);
+            const data = await response.json();
+            
+            console.log('Received data:', data);
+            
+            if (data.error) {
+                console.error('Error fetching market data:', data.error);
+                showError(data.error);
+                return;
+            }
+
+            if (!data.historical || !data.realtime) {
+                console.error('Missing data:', data);
+                showError('No data available for this symbol');
+                return;
+            }
+
+            console.log('Historical data:', data.historical);
+            console.log('Real-time data:', data.realtime);
+            updateCharts(data.historical);
+            updateMarketStats(data.realtime);
+            
+            // Update last refresh time
+            updateLastRefreshTime();
+        } catch (error) {
+            console.error('Error:', error);
+            showError('Failed to fetch market data. Please try again.');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    function updateCharts(data) {
+        if (!data || !data.dates) {
+            console.error('Invalid data for charts:', data);
+            return;
+        }
+
+        const dates = data.dates;
+        
+        // Update Price Chart
+        priceChart.data.labels = dates;
+        priceChart.data.datasets[0].data = data.prices.close.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        priceChart.update();
+
+        // Update RSI Chart
+        rsiChart.data.labels = dates;
+        rsiChart.data.datasets[0].data = data.indicators.rsi.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        rsiChart.update();
+
+        // Update MACD Chart
+        macdChart.data.labels = dates;
+        macdChart.data.datasets[0].data = data.indicators.macd.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        macdChart.data.datasets[1].data = data.indicators.macd_signal.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        macdChart.update();
+
+        // Update Bollinger Bands Chart
+        bollingerChart.data.labels = dates;
+        bollingerChart.data.datasets[0].data = data.prices.close.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        bollingerChart.data.datasets[1].data = data.indicators.bollinger_upper.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        bollingerChart.data.datasets[2].data = data.indicators.bollinger_lower.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        bollingerChart.update();
+
+        // Update Volume Chart
+        volumeChart.data.labels = dates;
+        volumeChart.data.datasets[0].data = data.prices.volume.map((value, index) => ({
+            x: new Date(dates[index]),
+            y: value
+        }));
+        volumeChart.update();
+    }
+
+    function updateMarketStats(data) {
+        console.log('Updating market stats with:', data);
+        
+        if (!data) {
+            console.error('No data provided to updateMarketStats');
+            return;
+        }
+        
+        // Show/hide demo message
+        const demoMessage = document.getElementById('demo-message');
+        if (data.is_demo) {
+            demoMessage.style.display = 'flex';
+        } else {
+            demoMessage.style.display = 'none';
+        }
+        
+        try {
+            // Update each stat with proper formatting
+            document.getElementById('current-price').textContent = formatNumber(data.price);
+            document.getElementById('price-change').textContent = formatNumber(data.change);
+            document.getElementById('price-change-percent').textContent = formatNumber(data.change_percent) + '%';
+            document.getElementById('volume').textContent = formatNumber(data.volume);
+            document.getElementById('high').textContent = formatNumber(data.high);
+            document.getElementById('low').textContent = formatNumber(data.low);
+            document.getElementById('open').textContent = formatNumber(data.open);
+            document.getElementById('previous-close').textContent = formatNumber(data.previous_close);
+            
+            // Add color coding
+            const changeElement = document.getElementById('price-change');
+            const changePercentElement = document.getElementById('price-change-percent');
+            
+            if (data.change > 0) {
+                changeElement.style.color = '#22c55e';
+                changePercentElement.style.color = '#22c55e';
+            } else if (data.change < 0) {
+                changeElement.style.color = '#ef4444';
+                changePercentElement.style.color = '#ef4444';
+            } else {
+                changeElement.style.color = '#64748b';
+                changePercentElement.style.color = '#64748b';
+            }
+        } catch (error) {
+            console.error('Error updating market stats:', error);
+        }
+    }
+
+    function formatNumber(num) {
+        if (typeof num !== 'number') {
+            console.warn('Invalid number:', num);
+            return '--';
+        }
+        return num.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function showError(message) {
+        // Create error message element if it doesn't exist
+        let errorElement = document.getElementById('error-message');
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.id = 'error-message';
+            errorElement.className = 'error-message';
+            document.querySelector('.market-overview').insertBefore(errorElement, document.querySelector('.market-stats'));
+        }
+        
+        // Update error message
+        errorElement.innerHTML = `
+            <span class="error-icon">⚠️</span>
+            <span>${message}</span>
+        `;
+        errorElement.style.display = 'flex';
+        
+        // Clear all stats
+        clearMarketStats();
+    }
+
+    function clearMarketStats() {
+        const stats = [
+            'current-price',
+            'price-change',
+            'price-change-percent',
+            'volume',
+            'high',
+            'low',
+            'open',
+            'previous-close'
+        ];
+        
+        stats.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = '--';
+                element.style.color = '#64748b';
+            }
+        });
+        
+        // Hide demo message
+        const demoMessage = document.getElementById('demo-message');
+        if (demoMessage) {
+            demoMessage.style.display = 'none';
+        }
+    }
+
+    function updateLastRefreshTime() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        const dateString = now.toLocaleDateString();
+        
+        let lastRefreshElement = document.getElementById('last-refresh');
+        if (!lastRefreshElement) {
+            lastRefreshElement = document.createElement('div');
+            lastRefreshElement.id = 'last-refresh';
+            lastRefreshElement.className = 'last-refresh';
+            document.querySelector('.market-controls').appendChild(lastRefreshElement);
+        }
+        
+        lastRefreshElement.textContent = `Last updated: ${dateString} ${timeString}`;
+    }
+
+    function showLoading(show) {
+        const refreshBtn = document.getElementById('refresh-btn');
+        const loadingOverlay = document.querySelector('.loading-overlay');
+        
+        if (show) {
+            refreshBtn.classList.add('loading');
+            loadingOverlay.classList.add('active');
+        } else {
+            refreshBtn.classList.remove('loading');
+            loadingOverlay.classList.remove('active');
+        }
+    }
+
+    // Add error message styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .error-message {
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+        }
+
+        .error-icon {
+            font-size: 1.2rem;
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Add last refresh styles
+    style.textContent += `
+        .last-refresh {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin-top: 8px;
+            text-align: right;
+        }
+    `;
+    </script>
+</body>
+</html> 
